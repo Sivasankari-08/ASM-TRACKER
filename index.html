@@ -1,0 +1,1612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ASM Tracker Pro</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* ---------- THEME VARIABLES ---------- */
+    :root{
+      --primary-1: #6b46c1; /* purple */
+      --primary-2: #8b5cf6;
+      --primary-contrast: #ffffff;
+      --bg: linear-gradient(135deg,#7b68ee 0%, #8a6bd8 50%, #a378d6 100%);
+      --card-bg: #ffffff;
+      --glass: rgba(255,255,255,0.08);
+      --text: #1f2d3d;
+      --muted: #6b7280;
+      --radius: 16px;
+      --shadow-sm: 0 8px 32px rgba(0,0,0,0.08);
+      --transition: 220ms cubic-bezier(.2,.9,.3,1);
+    }
+    body.dark {
+      --bg: linear-gradient(135deg,#160f28 0%, #2a1440 50%, #3a1e50 100%);
+      --card-bg: rgba(26,19,36,0.95);
+      --glass: rgba(255,255,255,0.04);
+      --text: #eef1ff;
+      --muted: #bfc7e6;
+      --primary-1: #a88cff;
+      --primary-2: #a76cf5;
+      --shadow-sm: 0 10px 30px rgba(0,0,0,0.6);
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%; margin:0; font-family:"Inter",system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial; color:var(--text); background:var(--bg); -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;}
+
+    .animated-bg{position:fixed; inset:0; z-index:-1; overflow:hidden;}
+    .animated-bg::before{
+      content:""; position:absolute; inset:-25%;
+      background:
+        radial-gradient(circle at 10% 20%, rgba(255,255,255,0.06), transparent 8%),
+        radial-gradient(circle at 90% 80%, rgba(0,0,0,0.05), transparent 12%);
+      transform: rotate(8deg); filter: blur(30px);
+    }
+
+    .navbar{
+      display:flex; justify-content:space-between; align-items:center;
+      padding:18px 28px; backdrop-filter: blur(12px);
+      background: rgba(255,255,255,0.05); border-bottom:1px solid rgba(255,255,255,0.06);
+      position:sticky; top:0; z-index:1000;
+    }
+    .nav-left{display:flex;align-items:center;gap:14px}
+    .nav-logo{display:flex;align-items:center;gap:10px;color:white;font-weight:800;font-size:20px}
+    .nav-logo i{background:linear-gradient(135deg,var(--primary-1),var(--primary-2)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; font-size:28px}
+    .nav-actions{display:flex;gap:10px;align-items:center}
+
+    /* BUTTONS */
+    .btn, .nav-btn, .btn-primary, .btn-secondary, .btn-ghost {
+      border-radius: 999px;
+      cursor: pointer;
+      font-weight: 700;
+      transition: var(--transition);
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:10px 14px;
+      text-decoration:none;
+      user-select:none;
+    }
+    .btn-primary, .nav-btn.primary, .nav-btn {
+      background: linear-gradient(135deg,var(--primary-1),var(--primary-2));
+      color: var(--primary-contrast);
+      border: 0;
+      box-shadow: 0 8px 32px rgba(107,70,193,0.12);
+    }
+    .btn-primary:hover, .nav-btn:hover { transform: translateY(-4px); filter:brightness(1.03); box-shadow: 0 14px 40px rgba(107,70,193,0.18); }
+
+    .btn-ghost{background:transparent;border:2px solid rgba(139,92,246,0.18);color:var(--primary-1);padding:10px 14px;border-radius:999px}
+    .btn-secondary, .btn-ghost:hover { background: linear-gradient(135deg,var(--primary-1),var(--primary-2)); color: #fff; border-color:transparent; }
+
+    /* avatar fix: ensure white text and proper gradient background */
+    .user-info .user-avatar{
+      width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+      background: linear-gradient(135deg,var(--primary-1),var(--primary-2));
+      color: #ffffff !important; /* force white */
+      font-weight:700;
+      box-shadow: 0 6px 18px rgba(107,70,193,0.12);
+      text-shadow: none;
+      border: 0;
+      font-size:14px;
+    }
+
+    /* CONTAINER, CARDS, FORMS (kept as in your app) */
+    .container{max-width:1200px;margin:22px auto;padding:0 18px}
+    .stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-bottom:22px}
+    .stat-card{background:var(--card-bg); padding:28px;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,0.06);border:1px solid rgba(0,0,0,0.04)}
+    .stat-icon{width:64px;height:64px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--primary-1),var(--primary-2));color:white;margin:0 auto 12px;font-size:22px}
+    .stat-value{font-size:36px;font-weight:800;color:var(--text);text-align:center}
+    .stat-label{text-align:center;color:var(--muted);font-weight:700;margin-top:8px;letter-spacing:1px}
+    .content-card{background:var(--card-bg); border-radius:18px;padding:30px; box-shadow:0 8px 32px rgba(0,0,0,0.06); border:1px solid rgba(0,0,0,0.04); margin-bottom:24px}
+    .card-header{ text-align:center;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid rgba(0,0,0,0.04)}
+    .card-header h1{font-size:28px;margin-bottom:6px}
+    .card-header p{color:var(--muted); font-weight:600}
+
+    .form-section{background:var(--card-bg); border-radius:12px;padding:22px;border:1px solid #edf2f7;margin-bottom:18px;position:relative}
+    .section-icon{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,var(--primary-1),var(--primary-2));display:flex;align-items:center;justify-content:center;color:white}
+    .section-title{font-weight:800;font-size:18px;color:var(--primary-1)}
+    .form-grid{display:grid;gap:14px}
+    .cols-2{grid-template-columns:1fr 1fr}
+    .cols-3{grid-template-columns:1fr 1fr 1fr}
+    label.form-label{display:block;font-weight:700;margin-bottom:8px;color:var(--text)}
+    input.form-input, select.form-select, textarea.form-textarea{
+      width:100%; padding:12px 14px;border-radius:12px;border:2px solid #e6eef9; font-size:15px; box-shadow:none; outline:none; transition:var(--transition)
+    }
+    input.form-input:focus, select.form-select:focus, textarea.form-textarea:focus { border-color:var(--primary-1); box-shadow:0 6px 18px rgba(107,70,193,0.06); transform:translateY(-2px) }
+    textarea.form-textarea{min-height:120px; resize:vertical}
+    .file-upload-area{border:2px dashed rgba(102,126,234,0.38); border-radius:14px; padding:18px; text-align:center; background:linear-gradient(180deg,#fff,#fbfdff); cursor:pointer}
+    .file-upload-area:hover{border-color:var(--primary-2); transform:translateY(-4px)}
+    .file-preview{display:flex;gap:10px;flex-wrap:wrap; justify-content:center;margin-top:10px}
+    .file-preview img{width:84px;height:84px; object-fit:cover;border-radius:10px;border:2px solid rgba(0,0,0,0.06)}
+
+    /* modals */
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);display:none;align-items:center;justify-content:center;padding:18px;z-index:2000}
+    .modal{width:100%;max-width:880px;background:var(--card-bg);border-radius:12px;padding:20px;box-shadow:0 40px 120px rgba(0,0,0,0.5)}
+    .modal .close-btn{position:absolute;right:18px;top:18px;background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted)}
+
+    /* login */
+    #loginPage{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+    .login-card{width:420px;background:var(--card-bg);border-radius:18px;padding:28px;box-shadow:0 8px 32px rgba(0,0,0,0.06);border:1px solid rgba(0,0,0,0.04)}
+    .form-input{width:100%;padding:10px;border-radius:8px;border:1px solid #e6eef9;margin-bottom:10px}
+    .btn-ghost{background:transparent;border:2px solid rgba(139,92,246,0.18);color:var(--primary-1);padding:10px 14px;border-radius:999px}
+    .hidden{display:none}
+
+    @media (max-width:992px){
+      .stats-grid{grid-template-columns:repeat(1,1fr)}
+      .cols-2{grid-template-columns:1fr}
+      .cols-3{grid-template-columns:1fr}
+      .nav-actions{display:flex;flex-wrap:wrap;gap:8px}
+      .login-card{width:100%}
+    }
+
+    /* small record item styles */
+    .record-item{background:linear-gradient(180deg,#fff,#fbfbff);border-radius:12px;padding:12px;border:1px solid #eef;margin-bottom:10px}
+    .record-top{display:flex;justify-content:space-between;gap:8px}
+    .record-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+    .small{font-size:12px;color:var(--muted)}
+
+    /* maps button styles */
+    .maps-get-btn{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius:10px;
+      font-weight:700;
+      cursor:pointer;
+      border:0;
+      background:linear-gradient(135deg,var(--primary-1),var(--primary-2));
+      color:var(--primary-contrast);
+      box-shadow:0 8px 24px rgba(107,70,193,0.12);
+      font-size:13px;
+    }
+    .maps-get-btn.small{ padding:6px 8px; font-size:12px; border-radius:8px; }
+    .maps-get-btn:active{ transform: translateY(1px); }
+    .maps-get-msg{ font-size:13px; color:var(--muted); margin-left:10px; }
+  </style>
+</head>
+<body>
+  <div class="animated-bg" aria-hidden="true"></div>
+
+  <!-- NAVBAR -->
+  <header class="navbar" id="mainNavbar" style="display:none">
+    <div class="nav-left">
+      <div class="nav-logo"><i class="fa-solid fa-clipboard-check"></i> ASM Tracker Pro</div>
+    </div>
+
+    <div class="nav-actions">
+      <button class="nav-btn" id="btnNewVisit" title="New Visit"><i class="fa-solid fa-plus"></i> New Visit</button>
+      <button class="nav-btn" id="btnMyRecords" title="My Records" style="display:none"><i class="fa-solid fa-list"></i> My Records</button>
+      <button class="nav-btn" id="btnExport" title="Export"><i class="fa-solid fa-file-arrow-down"></i> Export</button>
+      <button class="nav-btn" id="btnAdmin" style="display:none" title="Admin"><i class="fa-solid fa-user-shield"></i> Admin</button>
+      <button class="nav-btn" id="darkToggle" title="Toggle Dark Mode"><i class="fa-solid fa-moon"></i></button>
+      <div class="user-info" id="userInfo" style="display:none">
+        <div class="user-avatar" id="userAvatar">JD</div>
+        <div>
+          <div id="currentUserName" style="font-weight:800;color:white">John Doe</div>
+          <div id="currentUserRole" style="font-size:12px;color:rgba(255,255,255,0.85)">ASM Manager</div>
+        </div>
+      </div>
+      <button class="nav-btn" id="btnLogout" style="display:none"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
+    </div>
+  </header>
+
+  <!-- LOGIN PAGE -->
+  <main id="loginPage">
+    <div class="login-card" role="dialog" aria-modal="true">
+      <div style="text-align:center;margin-bottom:8px">
+        <div style="width:86px;height:86px;border-radius:50%;background:linear-gradient(135deg,var(--primary-1),var(--primary-2));display:inline-flex;align-items:center;justify-content:center;color:white;font-size:28px;margin-bottom:10px"><i class="fa-solid fa-clipboard-check"></i></div>
+      </div>
+      <h2 style="text-align:center;margin:8px 0">ASM Tracker Pro</h2>
+      <p style="text-align:center;color:var(--muted);margin:0 0 14px">Enterprise Field Visit Management System</p>
+
+      <div style="margin-top:10px">
+        <label style="font-weight:700">Username</label>
+        <input id="loginUsername" class="form-input" style="width:100%;margin-bottom:10px" placeholder="">
+        <label style="font-weight:700">Password</label>
+        <input id="loginPassword" type="password" class="form-input" style="width:100%;margin-bottom:12px" placeholder="">
+
+        <div style="display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:8px">
+          <div>
+            <button class="btn-ghost" id="demoBtn">Show Demo Users</button>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="nav-btn" id="openCreateFromLogin">Create Account</button>
+            <button class="btn btn-primary" id="loginBtn" style="min-width:110px"> Sign In </button>
+          </div>
+        </div>
+        <div id="loginError" style="Margin-top:10px;color:#b45309"></div>
+      </div>
+
+      <div style="margin-top:14px;text-align:center;color:var(--muted)">
+        <small>Don't have an account? Click <strong>Create Account</strong> to add your user details.</small>
+      </div>
+    </div>
+  </main>
+
+  <!-- MAIN APP -->
+  <main class="container" id="appMain" style="display:none">
+    <!-- DASHBOARD STATS -->
+    <section class="stats-grid" id="dashboardSection">
+      <div class="stat-card">
+        <div class="stat-icon"><i class="fa-solid fa-calendar-day"></i></div>
+        <div class="stat-value" id="todayVisits">0</div>
+        <div class="stat-label">TODAY'S VISITS</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon"><i class="fa-solid fa-chart-line"></i></div>
+        <div class="stat-value" id="totalVisits">0</div>
+        <div class="stat-label">TOTAL VISITS</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon"><i class="fa-solid fa-shop"></i></div>
+        <div class="stat-value" id="uniqueShops">0</div>
+        <div class="stat-label">UNIQUE SHOPS</div>
+      </div>
+    </section>
+
+    <!-- FORM -->
+    <section id="formSection" class="content-card" style="display:block">
+      <div class="card-header">
+        <h1><i class="fa-solid fa-clipboard-check"></i> New Field Visit Record</h1>
+        <p>Complete field visit documentation system</p>
+      </div>
+
+      <!-- IMPORTANT: only the Basic Information was inside the original <form>.
+           We keep the markup but JS now reads all named inputs within #formSection
+           so validation/submission works regardless of the <form> tag boundaries. -->
+
+      <!-- BASIC INFORMATION -->
+      <div class="form-section">
+        <div class="section-header">
+          <div class="section-icon"><i class="fa-solid fa-user"></i></div>
+          <div class="section-title">Basic Information</div>
+        </div>
+
+        <form id="asmForm" autocomplete="off">
+          <div class="form-grid cols-2">
+            <div>
+              <label class="form-label">Date of Visit <span style="color:var(--primary-1)">*</span></label>
+              <input type="date" name="visitDate" class="form-input" required>
+            </div>
+            <div>
+              <label class="form-label">Name of the Person <span style="color:var(--primary-1)">*</span></label>
+              <input type="text" name="personName" class="form-input" placeholder="Enter full name" required>
+            </div>
+
+            <div>
+              <label class="form-label">Mobile Number <span style="color:var(--primary-1)">*</span></label>
+              <input type="tel" name="mobileNumber" class="form-input" placeholder="+91 XXXXXXXXXX" required>
+            </div>
+            <div>
+              <label class="form-label">Type of Person <span style="color:var(--primary-1)">*</span></label>
+              <div class="radio-row">
+                <label class="radio-pill"><input type="radio" name="personType" value="Shop Owner" required> Shop Owner</label>
+                <label class="radio-pill"><input type="radio" name="personType" value="Staff" required> Staff</label>
+              </div>
+            </div>
+
+            <div>
+              <label class="form-label">Shop/Firm Name <span style="color:var(--primary-1)">*</span></label>
+              <input type="text" name="shopName" class="form-input" placeholder="Shop or firm name" required>
+            </div>
+            <div>
+              <label class="form-label">Lead Source</label>
+              <div class="radio-row" style="margin-top:6px">
+                <label class="radio-pill"><input type="radio" name="leadSource" value="Distributor"> Distributor</label>
+                <label class="radio-pill"><input type="radio" name="leadSource" value="Blue Origin"> Blue Origin</label>
+                <label class="radio-pill"><input type="radio" name="leadSource" value="NSM/RSM"> NSM/RSM</label>
+                <label class="radio-pill"><input type="radio" name="leadSource" value="Others"> Others</label>
+              </div>
+              <div id="otherSourceDiv" style="display:none;margin-top:10px">
+                <input type="text" name="otherSource" class="form-input" placeholder="Other source details">
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- ADDRESS & SHOP -->
+      <div class="form-section">
+        <div class="section-header">
+          <div class="section-icon"><i class="fa-solid fa-store"></i></div>
+          <div class="section-title">Shop & Address</div>
+        </div>
+
+        <div class="form-grid cols-3">
+          <div>
+            <label class="form-label">Address <span style="color:var(--primary-1)">*</span></label>
+            <input type="text" name="address" class="form-input" placeholder="Shop address" required>
+          </div>
+          <div>
+            <label class="form-label">City / Town <span style="color:var(--primary-1)">*</span></label>
+            <input type="text" name="city" class="form-input" placeholder="City" required>
+          </div>
+          <div>
+            <label class="form-label">State <span style="color:var(--primary-1)">*</span></label>
+            <select name="state" id="stateSelect" class="form-select" required>
+              <!-- populated by JS -->
+            </select>
+          </div>
+
+          <div>
+            <label class="form-label">Pincode <span style="color:var(--primary-1)">*</span></label>
+            <input type="text" name="pincode" class="form-input" placeholder="6 digit pincode" required>
+          </div>
+          <div>
+            <label class="form-label">Nearby Landmark</label>
+            <input type="text" name="landmark" class="form-input" placeholder="Landmark">
+          </div>
+          <div>
+            <label class="form-label">Google Maps Link</label>
+            <input type="url" name="mapsLink" class="form-input" placeholder="https://maps.google.com/...">
+            <!-- maps button & message will be inserted here by JS -->
+          </div>
+        </div>
+      </div>
+
+      <!-- SHOP INFO -->
+      <div class="form-section">
+        <div class="section-header">
+          <div class="section-icon"><i class="fa-solid fa-info-circle"></i></div>
+          <div class="section-title">Shop Details & Media</div>
+        </div>
+
+        <div class="form-grid cols-3">
+          <div>
+            <label class="form-label">Shop Size <span style="color:var(--primary-1)">*</span></label>
+            <select name="shopSize" class="form-select" required>
+              <option value="">Select</option>
+              <option>Below 500</option><option>501-1500</option><option>1500-5000</option><option>Above 5000</option>
+
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Stock Level <span style="color:var(--primary-1)">*</span></label>
+            <select name="shopStock" class="form-select" required>
+              <option value="">Select</option><option>Below 500 pcs</option><option>501-2000 pcs</option><option>Above 2000 pcs</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Brand Name / Logo</label>
+            <input type="text" name="brandLogo" class="form-input" placeholder="Brand name displayed">
+          </div>
+
+          <div style="grid-column:span 2">
+            <label class="form-label">Shop Pictures</label>
+            <div class="file-upload-area" id="shopUploadArea">
+              <div class="file-upload-icon"><i class="fa-solid fa-camera"></i></div>
+              <div class="file-upload-text">Click to upload shop pictures (JPG/PNG)</div>
+              <input type="file" id="shopPics" name="shopPics" accept="image/*" multiple style="display:none" />
+              <div id="shopPicsPreview" class="file-preview"></div>
+            </div>
+          </div>
+
+          <div style="grid-column:span 1">
+            <label class="form-label">Catalog Pictures</label>
+            <div class="file-upload-area" id="catalogUploadArea">
+              <div class="file-upload-icon"><i class="fa-solid fa-book-open"></i></div>
+              <div class="file-upload-text">Click to upload catalog pictures</div>
+              <input type="file" id="catalogPics" name="catalogPics" accept="image/*" multiple style="display:none" />
+              <div id="catalogPicsPreview" class="file-preview"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SOCIAL / FEEDBACK -->
+      <div class="form-section">
+        <div class="section-header">
+          <div class="section-icon"><i class="fa-solid fa-comments"></i></div>
+          <div class="section-title">Additional</div>
+        </div>
+
+        <div class="form-grid cols-2">
+          <div>
+            <label class="form-label">Social Media Links</label>
+            <input type="text" name="socialMediaLinks" class="form-input" placeholder="WhatsApp / Facebook / Instagram links">
+          </div>
+
+          <div>
+            <label class="form-label">Other Provider WhatsApp</label>
+            <input type="text" name="leadProviderWhatsapp" class="form-input" placeholder="WhatsApp number">
+          </div>
+
+          <div style="grid-column:span 2">
+            <label class="form-label">Additional Details</label>
+            <textarea name="additionalDetails" class="form-textarea" placeholder="Any extra notes or observations"></textarea>
+          </div>
+
+          <div style="grid-column:span 2">
+            <label class="form-label">Category Feedback</label>
+            <textarea name="feedback" class="form-textarea" placeholder="Feedback about category / product category (demand, trends, substitutes)"></textarea>
+          </div>
+
+          <div style="grid-column:span 2">
+            <label class="form-label">Product Feedback</label>
+            <textarea name="productFeedback" class="form-textarea" placeholder="Feedback about product (quality, availability, etc.)"></textarea>
+          </div>
+
+        <div class="btn-row" style="margin-top:16px">
+          <button class="btn-primary" id="submitVisitBtn"><i class="fa-solid fa-check"></i> Submit Visit</button>
+          <button class="btn-secondary" id="clearFormBtn">Clear</button>
+        </div>
+        <div id="successMessage" style="margin-top:14px; display:none"></div>
+      </div>
+    </section>
+
+    <!-- RECORDS -->
+    <section id="recordsSection" class="content-card" style="display:none">
+      <div class="card-header">
+        <h1><i class="fa-solid fa-list-check"></i> My Records</h1>
+        <p>All visits submitted by you</p>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <input type="date" id="filterDate" class="form-input" style="max-width:180px" />
+        <input type="text" id="searchShop" placeholder="Search shop..." class="form-input" />
+        <select id="filterCity" class="form-select" style="max-width:220px">
+          <option value="">All Cities</option>
+        </select>
+        <button class="nav-btn" onclick="filterRecords()">Filter</button>
+        <button class="nav-btn" onclick="displayUserRecords()">Reset</button>
+      </div>
+
+      <div id="recordsList" class="records-container"></div>
+      <div style="margin-top:12px; text-align:center">
+        <button class="nav-btn" onclick="exportData()">Export My Records</button>
+      </div>
+    </section>
+
+    <!-- ADMIN -->
+    <section id="adminSection" class="content-card" style="display:none">
+      <div class="card-header"><h1>Admin Panel</h1><p>Manage users & view all records</p></div>
+      <div style="display:flex;gap:10px;margin-bottom:12px">
+        <button class="nav-btn" id="btnShowCreateModal">Create User</button>
+        <button class="nav-btn" onclick="viewAllUsers()">View Users</button>
+        <button class="nav-btn" onclick="viewAllRecords()">View All Records</button>
+        <button class="nav-btn" onclick="exportAllData()">Export All Data</button>
+        <button class="nav-btn" onclick="createSystemBackup()">Backup System</button>
+        <button class="nav-btn" onclick="viewSessions()">View Sessions</button>
+        <button class="nav-btn" onclick="exportSessions()">Export Sessions</button>
+      </div>
+      <div id="adminContent"></div>
+    </section>
+  </main>
+
+  <!-- CREATE USER MODAL -->
+  <div id="createUserModal" class="modal-overlay" role="dialog" aria-hidden="true">
+    <div class="modal" role="document">
+      <button class="close-btn" onclick="closeCreateUserModal()">&times;</button>
+      <div class="modal-header" style="text-align:left;margin-bottom:14px">
+        <h2 style="margin:0 0 12px">Create New User</h2>
+        <p style="color:var(--muted);margin:0">Add a new system user</p>
+      </div>
+
+      <form id="createUserForm" style="display:grid;gap:10px">
+        <input type="text" name="fullName" class="form-input" placeholder="Full name" required />
+        <input type="text" name="newUsername" class="form-input" placeholder="Username (unique)" required />
+        <input type="password" name="newPassword" class="form-input" placeholder="Password (min 6)" required />
+        <input type="text" name="employeeId" class="form-input" placeholder="Employee ID (optional)" />
+        <input type="text" name="department" class="form-input" placeholder="Department (optional)" />
+        <select name="userRole" class="form-select" required>
+          <option value="">Select role</option>
+          <option>Sales Executive</option>
+          <option>ASM Manager</option>
+          <option>NSM/RSM Manager</option>
+        </select>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:6px">
+          <button type="button" class="btn-secondary" onclick="closeCreateUserModal()">Cancel</button>
+          <button type="submit" class="btn-primary">Create User</button>
+        </div>
+      </form>
+      <div id="createUserMessage" style="margin-top:10px"></div>
+    </div>
+  </div>
+
+  <!-- RECORD DETAILS MODAL -->
+  <div id="recordModal" class="modal-overlay" role="dialog" aria-hidden="true">
+    <div class="modal" id="recordModalContent">
+      <button class="close-btn" onclick="closeRecordModal()">&times;</button>
+      <div id="recordDetails"></div>
+    </div>
+  </div>
+
+  <script>
+    /* =========================
+         Application State & Auth
+       ========================= */
+    const demoUsers = {
+      admin: { password: 'admin123', role: 'Administrator', fullName: 'System Administrator', permissions:['create','read','update','delete','export','admin'], employeeId:'ADM001', department:'IT' }
+    };
+
+    function loadUsers(){
+      try{
+        const s = localStorage.getItem('systemUsers');
+        if (!s){ localStorage.setItem('systemUsers', JSON.stringify(demoUsers)); return {...demoUsers}; }
+        return JSON.parse(s);
+      } catch(e){ console.error('load users', e); localStorage.setItem('systemUsers', JSON.stringify(demoUsers)); return {...demoUsers}; }
+    }
+    function saveUsers(u){ localStorage.setItem('systemUsers', JSON.stringify(u)); }
+
+    // SESSION TRACKING UTILITIES
+    function loadSessions(){ try{ return JSON.parse(localStorage.getItem('loginSessions') || '{}'); }catch(e){ return {}; } }
+    function saveSessions(s){ localStorage.setItem('loginSessions', JSON.stringify(s)); }
+
+    let users = loadUsers();
+    let currentUser = null;
+    let darkMode = false;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      populateIndianStates();
+      document.getElementById('demoBtn').addEventListener('click', ()=> alert('Demo credentials:\\nadmin / admin123'));
+      document.getElementById('openCreateFromLogin').addEventListener('click', showCreateUserModal);
+      document.getElementById('loginBtn').addEventListener('click', () => {
+        const u = document.getElementById('loginUsername').value.trim();
+        const p = document.getElementById('loginPassword').value;
+        document.getElementById('loginError').textContent = '';
+        handleLogin(u,p);
+      });
+      document.getElementById('createUserForm').addEventListener('submit', handleCreateUserFromModal);
+      document.getElementById('btnShowCreateModal')?.addEventListener('click', showCreateUserModal);
+      setupFileUploadElements();
+      setupNavButtons();
+      autoSetDateToday();
+      restoreSession();
+      document.querySelectorAll('[name="leadSource"]').forEach(r => r.addEventListener('change', onLeadSourceChange));
+      document.querySelectorAll('.modal-overlay').forEach(m => {
+        m.addEventListener('click', (e)=>{ if (e.target === m) closeCreateUserModal(); });
+      });
+
+      // ensure maps button attaches (we also call later)
+      setTimeout(() => {
+        if (typeof attachMapsInputOpenButton === 'function') try { attachMapsInputOpenButton(); } catch(e) {}
+      }, 50);
+    });
+
+    function onLeadSourceChange(e){
+      const val = e.target.value;
+      document.getElementById('otherSourceDiv').style.display = (val === 'Others') ? 'block' : 'none';
+    }
+
+    function populateIndianStates(){
+      const states = [
+        "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Goa","Gujarat","Haryana",
+        "Himachal Pradesh","Jharkhand","Karnataka","Kerala","Madhya Pradesh","Maharashtra","Manipur",
+        "Meghalaya","Mizoram","Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana",
+        "Tripura","Uttar Pradesh","Uttarakhand","West Bengal",
+        "Andaman and Nicobar Islands","Chandigarh","Dadra and Nagar Haveli and Daman and Diu","Delhi",
+        "Jammu and Kashmir","Ladakh","Lakshadweep","Puducherry"
+      ];
+      const sel = document.getElementById('stateSelect');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">Select State</option>';
+      states.forEach(s => { const opt = document.createElement('option'); opt.value = s; opt.textContent = s; sel.appendChild(opt); });
+    }
+
+    function handleLogin(username, password){
+      if (!username || !password) { document.getElementById('loginError').textContent = 'Enter username & password'; return; }
+      users = loadUsers();
+      if (users[username] && users[username].password === password){
+        currentUser = { username, fullName: users[username].fullName, role: users[username].role, permissions: users[username].permissions };
+
+        const sessions = loadSessions();
+        sessions[username] = sessions[username] || {};
+        sessions[username].username = username;
+        sessions[username].fullName = users[username].fullName;
+        sessions[username].role = users[username].role;
+        sessions[username].lastLogin = new Date().toISOString();
+        sessions[username].active = true;
+        sessions[username].lastLogout = sessions[username].lastLogout || null;
+        saveSessions(sessions);
+
+        sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+        showMainForUser();
+      } else {
+        document.getElementById('loginError').textContent = 'Invalid credentials';
+      }
+    }
+
+    function restoreSession(){
+      try{
+        const s = sessionStorage.getItem('currentUser');
+        if (s){
+          currentUser = JSON.parse(s);
+          users = loadUsers();
+          showMainForUser();
+        } else {
+          document.getElementById('loginPage').style.display = 'flex';
+          document.getElementById('mainNavbar').style.display = 'none';
+          document.getElementById('appMain').style.display = 'none';
+        }
+      }catch(e){ console.warn(e); }
+    }
+
+    function showMainForUser(){
+      document.getElementById('loginPage').style.display = 'none';
+      document.getElementById('mainNavbar').style.display = 'flex';
+      document.getElementById('appMain').style.display = 'block';
+      document.getElementById('userInfo').style.display = 'flex';
+      document.getElementById('btnLogout').style.display = 'inline-flex';
+      document.getElementById('btnMyRecords').style.display = 'inline-flex';
+      if (currentUser.permissions && currentUser.permissions.includes('admin')) { document.getElementById('btnAdmin').style.display = 'inline-flex'; } else { document.getElementById('btnAdmin').style.display = 'none'; }
+      updateUserDisplay();
+      updateDashboard();
+      setupAutoSave();
+      loadAutoSave();
+      document.getElementById('loginUsername').value=''; document.getElementById('loginPassword').value='';
+    }
+
+    function updateUserDisplay(){
+      if (!currentUser) return;
+      const initials = currentUser.fullName.split(' ').map(n=>n[0]).slice(0,2).join('').toUpperCase();
+      document.getElementById('userAvatar').textContent = initials;
+      document.getElementById('currentUserName').textContent = currentUser.fullName;
+      document.getElementById('currentUserRole').textContent = currentUser.role;
+    }
+
+    /* Create user modal */
+    function showCreateUserModal(){
+      const modal = document.getElementById('createUserModal'); const form = document.getElementById('createUserForm');
+      if (form) form.reset(); document.getElementById('createUserMessage').innerHTML = ''; modal.style.display = 'flex';
+      const loginPage = document.getElementById('loginPage'); if (loginPage && loginPage.style.display !== 'none'){ loginPage.style.filter = 'blur(2px)'; loginPage.style.pointerEvents = 'none'; }
+      document.body.style.overflow = 'hidden';
+    }
+    function closeCreateUserModal(){
+      const modal = document.getElementById('createUserModal'); if (!modal) return; modal.style.display = 'none';
+      const loginPage = document.getElementById('loginPage'); if (loginPage){ loginPage.style.filter = ''; loginPage.style.pointerEvents = ''; }
+      document.body.style.overflow = ''; document.getElementById('createUserMessage').innerHTML = '';
+    }
+
+    function handleCreateUserFromModal(e){
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const fullName = (fd.get('fullName') || '').trim();
+      const uname = (fd.get('newUsername') || '').trim();
+      const pwd = fd.get('newPassword') || '';
+      const role = fd.get('userRole') || 'Sales Executive';
+      if (!fullName || !uname || !pwd){ showCreateUserError('Please fill required fields'); return; }
+      if (pwd.length < 6){ showCreateUserError('Password must be at least 6 chars'); return; }
+      users = loadUsers();
+      if (users[uname]){ showCreateUserError('Username exists'); return; }
+
+      users[uname] = {
+        password: pwd,
+        role,
+        fullName,
+        permissions: derivePermissions(role),
+        employeeId: fd.get('employeeId') || ('EMP' + Math.floor(Math.random()*900+100)),
+        department: fd.get('department') || ''
+      };
+      saveUsers(users);
+      showCreateUserSuccess('User created: ' + uname);
+
+      currentUser = { username: uname, fullName: users[uname].fullName, role: users[uname].role, permissions: users[uname].permissions };
+      const sessions = loadSessions();
+      sessions[uname] = sessions[uname] || {};
+      sessions[uname].username = uname;
+      sessions[uname].fullName = users[uname].fullName;
+      sessions[uname].role = users[uname].role;
+      sessions[uname].lastLogin = new Date().toISOString();
+      sessions[uname].active = true;
+      saveSessions(sessions);
+
+      sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+      setTimeout(()=>{ closeCreateUserModal(); showMainForUser(); }, 700);
+    }
+    function showCreateUserError(msg){ document.getElementById('createUserMessage').innerHTML = `<div style="color:#dc2626">${msg}</div>`; }
+    function showCreateUserSuccess(msg){ document.getElementById('createUserMessage').innerHTML = `<div style="color:#16a34a">${msg}</div>`; }
+    function derivePermissions(role){
+      switch(role){
+        case 'Sales Executive': return ['create','read'];
+        case 'ASM Manager': return ['create','read','update','export'];
+        case 'Territory Manager': return ['create','read','update','export'];
+        case 'Regional Manager': return ['create','read','update','delete','export'];
+        case 'Administrator': return ['create','read','update','delete','export','admin'];
+        default: return ['create','read'];
+      }
+    }
+
+    /* Nav setup */
+    function setupNavButtons(){
+      document.getElementById('btnNewVisit').addEventListener('click', ()=> { document.getElementById('formSection').style.display='block'; document.getElementById('recordsSection').style.display='none'; document.getElementById('adminSection').style.display='none'; });
+      document.getElementById('btnMyRecords').addEventListener('click', ()=> { document.getElementById('formSection').style.display='none'; document.getElementById('recordsSection').style.display='block'; document.getElementById('adminSection').style.display='none'; displayUserRecords(); });
+      document.getElementById('btnExport').addEventListener('click', ()=> exportData());
+      document.getElementById('btnAdmin').addEventListener('click', ()=> { if (!currentUser || !currentUser.permissions.includes('admin')) { alert('Admin only'); return; } document.getElementById('formSection').style.display='none'; document.getElementById('recordsSection').style.display='none'; document.getElementById('adminSection').style.display='block'; displayAdminPanel(); });
+      document.getElementById('darkToggle').addEventListener('click', toggleDarkMode);
+      document.getElementById('submitVisitBtn').addEventListener('click', submitVisitHandler);
+      document.getElementById('clearFormBtn').addEventListener('click', clearFormHandler);
+
+      document.getElementById('btnLogout').addEventListener('click', () => {
+        if (!confirm('Logout?')) return;
+        if (currentUser && currentUser.username){
+          const sessions = loadSessions();
+          if (sessions[currentUser.username]){ sessions[currentUser.username].active = false; sessions[currentUser.username].lastLogout = new Date().toISOString(); saveSessions(sessions); }
+        }
+        sessionStorage.removeItem('currentUser');
+        currentUser = null;
+        document.getElementById('userInfo').style.display='none';
+        document.getElementById('btnLogout').style.display='none';
+        document.getElementById('btnAdmin').style.display='none';
+        document.getElementById('mainNavbar').style.display='none';
+        document.getElementById('appMain').style.display='none';
+        document.getElementById('loginPage').style.display='flex';
+      });
+    }
+
+    /* Dark mode */
+    function toggleDarkMode(){ darkMode = !darkMode; document.body.classList.toggle('dark', darkMode); const icon = document.querySelector('#darkToggle i'); if (darkMode) { icon.classList.remove('fa-moon'); icon.classList.add('fa-sun'); } else { icon.classList.add('fa-moon'); icon.classList.remove('fa-sun'); } localStorage.setItem('asm_dark', darkMode ? '1' : '0'); }
+    (function(){ if (localStorage.getItem('asm_dark')==='1'){ darkMode=true; document.body.classList.add('dark'); const icon = document.querySelector('#darkToggle i'); icon.classList.remove('fa-moon'); icon.classList.add('fa-sun'); } })();
+
+    /* File previews */
+    function setupFileUploadElements(){ document.querySelectorAll('.file-upload-area .file-upload-text').forEach(e=>{ if (!e.innerText.trim()) e.innerHTML = '<strong>Click to upload</strong>'; }); document.getElementById('shopUploadArea')?.addEventListener('click', ()=> document.getElementById('shopPics').click()); document.getElementById('catalogUploadArea')?.addEventListener('click', ()=> document.getElementById('catalogPics').click()); document.getElementById('shopPics')?.addEventListener('change', handleShopPicsPreview); document.getElementById('catalogPics')?.addEventListener('change', handleCatalogPicsPreview); }
+    function handleShopPicsPreview(e){ const preview = document.getElementById('shopPicsPreview'); preview.innerHTML=''; const files = Array.from(e.target.files || []); files.slice(0,8).forEach(file => { const reader = new FileReader(); reader.onload = ev => { const img = document.createElement('img'); img.src = ev.target.result; preview.appendChild(img); }; reader.readAsDataURL(file); }); }
+    function handleCatalogPicsPreview(e){ const preview = document.getElementById('catalogPicsPreview'); preview.innerHTML=''; const files = Array.from(e.target.files || []); files.slice(0,8).forEach(file => { const reader = new FileReader(); reader.onload = ev => { const img = document.createElement('img'); img.src = ev.target.result; preview.appendChild(img); }; reader.readAsDataURL(file); }); }
+
+    /* ===============================
+       NEW: robust form-data collection
+       (fixes issue: many fields were outside <form>)
+       =============================== */
+
+    // returns a plain object containing the form fields from #formSection
+    function collectFormData() {
+      const container = document.getElementById('formSection');
+      const inputs = container.querySelectorAll('input[name], select[name], textarea[name]');
+      const data = {};
+      // handle radio groups separately: we want value of checked radio
+      const radiosSeen = new Set();
+      inputs.forEach(el => {
+        const name = el.getAttribute('name');
+        if (!name) return;
+        const type = el.type;
+        if (type === 'radio') {
+          if (radiosSeen.has(name)) return;
+          radiosSeen.add(name);
+          const checked = container.querySelector(`input[name="${name}"]:checked`);
+          data[name] = checked ? checked.value : '';
+        } else if (type === 'checkbox') {
+          // if name ends with [] treat as array
+          if (name.endsWith('[]')) {
+            const arrName = name.slice(0, -2);
+            data[arrName] = data[arrName] || [];
+            if (el.checked) data[arrName].push(el.value);
+          } else {
+            data[name] = el.checked ? (el.value || 'on') : '';
+          }
+        } else if (el.tagName.toLowerCase() === 'select' && el.multiple) {
+          data[name] = Array.from(el.selectedOptions).map(o => o.value);
+        } else if (el.type === 'file') {
+          // for files, store file names (files may be uploaded from input)
+          const files = el.files ? Array.from(el.files).map(f => f.name) : [];
+          data[name] = files;
+        } else {
+          data[name] = el.value;
+        }
+      });
+      return data;
+    }
+
+    // validate: accept an object (like returned by collectFormData)
+    function validateFormDataObj(obj) {
+      const required = ['visitDate','personName','mobileNumber','personType','shopName','address','city','state','pincode','shopSize','shopStock'];
+      const missing = [];
+      required.forEach(k => {
+        const val = obj[k];
+        if (val === undefined || val === null) missing.push(k);
+        else if (Array.isArray(val) && val.length === 0) missing.push(k);
+        else if (String(val).trim() === '') missing.push(k);
+      });
+      return missing;
+    }
+
+    /* Form submit & storage */
+    function autoSetDateToday(){ const d = new Date().toISOString().split('T')[0]; const el = document.querySelector('input[name="visitDate"]'); if (el && !el.value) el.value = d; }
+
+    function submitVisitHandler(ev) {
+      ev.preventDefault();
+      if (!currentUser) { alert('Please login'); return; }
+
+      // collect form data robustly from #formSection (fix)
+      const obj = collectFormData();
+      const miss = validateFormDataObj(obj);
+      if (miss.length) { alert('Please fill required fields: ' + miss.join(', ')); return; }
+
+      // Build record object
+      const record = {};
+      // copy all keys from obj
+      Object.keys(obj).forEach(k => { record[k] = obj[k]; });
+
+      // include uploaded file names from actual file inputs if present
+      const shopFileInput = document.getElementById('shopPics');
+      if (shopFileInput && shopFileInput.files && shopFileInput.files.length) {
+        record.shopPics = Array.from(shopFileInput.files).map(f => f.name);
+      } else if (!record.shopPics) record.shopPics = [];
+
+      const catalogFileInput = document.getElementById('catalogPics');
+      if (catalogFileInput && catalogFileInput.files && catalogFileInput.files.length) {
+        record.catalogPics = Array.from(catalogFileInput.files).map(f => f.name);
+      } else if (!record.catalogPics) record.catalogPics = [];
+
+      record.id = Date.now();
+      record.timestamp = new Date().toISOString();
+      record.submittedAt = new Date().toLocaleString();
+      record.submittedBy = currentUser.username;
+      record.submitterName = currentUser.fullName;
+
+      // attach captured camera images (if any)
+      if (window.__attachCapturedImagesToRecord) window.__attachCapturedImagesToRecord(record);
+
+      const userKey = `visitRecords_${currentUser.username}`;
+      const existing = JSON.parse(localStorage.getItem(userKey) || '[]');
+      existing.push(record);
+      localStorage.setItem(userKey, JSON.stringify(existing));
+
+      // clear buffer
+      if (window.__clearCapturedImages) window.__clearCapturedImages();
+
+      showFormSuccess(record.id);
+      updateDashboard();
+      if (document.getElementById('recordsSection').style.display!=='none') displayUserRecords();
+
+      // Reset UI elements
+      document.getElementById('asmForm').reset();
+      // Also clear any fields outside the form
+      const outsideFields = document.querySelectorAll('#formSection input[name], #formSection select[name], #formSection textarea[name]');
+      outsideFields.forEach(el => {
+        if (el.type === 'radio' || el.type === 'checkbox') {
+          el.checked = false;
+        } else if (el.tagName.toLowerCase() === 'select') {
+          el.selectedIndex = 0;
+        } else {
+          el.value = '';
+        }
+      });
+
+      document.getElementById('shopPicsPreview').innerHTML='';
+      document.getElementById('catalogPicsPreview').innerHTML='';
+      autoSetDateToday();
+      clearAutoSave();
+      setTimeout(()=>{ document.getElementById('successMessage').style.display='none'; }, 4000);
+    }
+
+    function showFormSuccess(id) { const el = document.getElementById('successMessage'); el.style.display='block'; el.innerHTML = `<div style="color:#16a34a"><i class="fa-solid fa-check-circle" style="margin-right:10px"></i> Visit record submitted successfully! Record ID: <strong>#${id}</strong></div>`; }
+    function getUserRecords(username) { try { return JSON.parse(localStorage.getItem(`visitRecords_${username}`) || '[]'); } catch(e){ return []; } }
+    function saveUsersToStorage(){ saveUsers(users); }
+
+    /* Records display / filters (unchanged) */
+    function displayUserRecords() {
+      const recs = getUserRecords(currentUser.username);
+      const list = document.getElementById('recordsList');
+      if (!recs.length) {
+        list.innerHTML = `<div style="text-align:center;padding:36px;color:var(--muted)"><i class="fa-solid fa-inbox" style="font-size:40px;opacity:0.3"></i><h3>No visit records found</h3><p>Submit a new visit from 'New Visit'</p></div>`;
+        return;
+      }
+      updateCityFilter(recs);
+      let html = '';
+      recs.slice().reverse().forEach(r => {
+        html += `
+          <div class="record-item">
+            <div class="record-top">
+              <div>
+                <div style="font-weight:800">${escapeHtml(r.shopName || '-')} <span class="small">(${escapeHtml(r.city || '-')})</span></div>
+                <div class="small record-meta">${escapeHtml(r.personName || '-')} • ${escapeHtml(r.mobileNumber || '')}</div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-weight:800">${escapeHtml(r.visitDate || '-')}</div>
+                <div class="small">ID: #${r.id}</div>
+                <div style="margin-top:8px">
+                  <button class="nav-btn" onclick='openRecordDetails(${r.id})'><i class="fa-solid fa-eye"></i> Details</button>
+                  ${r.mapsLink ? `<button class="nav-btn" onclick="openMapInNewTab('${encodeURIComponent(String(r.mapsLink))}')" title="Open live map"><i class="fa-solid fa-map-location-dot"></i> Open Map</button>` : ''}
+                </div>
+              </div>
+            </div>
+            <div class="record-grid">
+              <div><div class="small">Lead Source</div><div style="font-weight:700">${escapeHtml(r.leadSource||'-')}</div></div>
+              <div><div class="small">Shop Size</div><div style="font-weight:700">${escapeHtml(r.shopSize||'-')}</div></div>
+              <div><div class="small">Stock Level</div><div style="font-weight:700">${escapeHtml(r.shopStock||'-')}</div></div>
+            </div>
+          </div>
+        `;
+      });
+      list.innerHTML = html;
+    }
+
+    function updateCityFilter(recs){
+      const cities = Array.from(new Set(recs.map(r=>r.city).filter(Boolean)));
+      const sel = document.getElementById('filterCity');
+      sel.innerHTML = '<option value="">All Cities</option>';
+      cities.forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`);
+    }
+
+    function filterRecords(){
+      const date = document.getElementById('filterDate').value;
+      const shop = document.getElementById('searchShop').value.trim().toLowerCase();
+      const city = document.getElementById('filterCity').value;
+      let recs = getUserRecords(currentUser.username);
+      if (date) recs = recs.filter(r => r.visitDate === date);
+      if (shop) recs = recs.filter(r => (r.shopName || '').toLowerCase().includes(shop));
+      if (city) recs = recs.filter(r => r.city === city);
+      const list = document.getElementById('recordsList');
+      if (!recs.length) { list.innerHTML = `<div style="padding:30px;text-align:center;color:var(--muted)">No records match filters</div>`; return; }
+      let html='';
+      recs.slice().reverse().forEach(r => {
+        html += `<div class="record-item">
+          <div class="record-top">
+            <div><div style="font-weight:800">${escapeHtml(r.shopName||'-')}</div><div class="small">${escapeHtml(r.personName||'-')} • ${escapeHtml(r.mobileNumber||'')}</div></div>
+            <div style="text-align:right"><div style="font-weight:800">${escapeHtml(r.visitDate||'-')}</div><div class="small">ID: #${r.id}</div><div style="margin-top:8px"><button class="nav-btn" onclick='openRecordDetails(${r.id})'><i class="fa-solid fa-eye"></i> Details</button></div></div>
+          </div></div>`;
+      });
+      list.innerHTML = html;
+    }
+
+    /* Record details modal (unchanged) */
+    function escapeHtml(str){ return String(str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+    function deriveEmbedUrl(rawUrl) {
+      if (!rawUrl || typeof rawUrl !== 'string') return null;
+      const url = rawUrl.trim();
+      try {
+        if (url.includes('google.com/maps')) {
+          if (url.includes('/embed') || url.includes('output=embed')) return url;
+          if (url.includes('?')) {
+            return url + '&output=embed';
+          }
+          return url.replace(/\/maps(\/)?/, '/maps/embed/');
+        }
+        if (url.includes('maps.app.goo.gl') || url.includes('goo.gl/maps')) {
+          return 'https://www.google.com/maps?q=' + encodeURIComponent(url);
+        }
+        const atMatch = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+        if (atMatch) {
+          const lat = atMatch[1], lng = atMatch[2];
+          return `https://www.google.com/maps?q=${lat},${lng}&output=embed`;
+        }
+        return null;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function normalizeMapsUrl(raw){
+      try{
+        if(!raw) return null;
+        let url = String(raw).trim();
+        if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
+        const u = new URL(url);
+        if(u.hostname.includes('maps.app.goo.gl') || u.hostname.includes('goo.gl') || u.hostname.includes('goo.gl')) return url;
+        if((u.hostname.includes('google.com') || u.hostname.includes('maps.google.com') || u.hostname.includes('www.google.com')) && url.includes('@')){
+          const m = url.match(/@(-?[0-9.]+),(-?[0-9.]+)/);
+          if(m){ const lat = m[1], lng = m[2]; return `https://www.google.com/maps?q=${lat},${lng}`; }
+        }
+        if(u.hostname.includes('google') && url.includes('/maps')){
+          return url.replace(u.origin, 'https://www.google.com');
+        }
+        return url;
+      } catch(e){
+        return String(raw);
+      }
+    }
+
+    function openMapInNewTab(encodedUrl){
+      try{
+        const raw = decodeURIComponent(encodedUrl || '');
+        const normalized = normalizeMapsUrl(raw) || raw;
+        window.open(normalized, '_blank', 'noopener,noreferrer');
+      } catch(e){
+        try { window.open(raw, '_blank', 'noopener,noreferrer'); } catch(err){ console.error(err); }
+      }
+    }
+
+    function openRecordDetails(id) {
+      const recs = getUserRecords(currentUser.username);
+      const r = recs.find(x=>x.id===id);
+      if (!r) { alert('Record not found'); return; }
+      const container = document.getElementById('recordDetails');
+      let html = `<h2 style="margin-bottom:8px">${escapeHtml(r.shopName || 'Visit Record')}</h2><div style="color:var(--muted);margin-bottom:10px">ID: #${r.id} • ${escapeHtml(r.visitDate)} • Submitted: ${escapeHtml(r.submittedAt)}</div>`;
+      html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">`;
+      const keys = {
+        personName:'Person Name', mobileNumber:'Mobile', personType:'Person Type', leadSource:'Lead Source', otherSource:'Other Source',
+        address:'Address', city:'City', state:'State', pincode:'Pincode', landmark:'Landmark', mapsLink:'Maps Link',
+        shopSize:'Shop Size', shopStock:'Shop Stock', brandLogo:'Brand', socialMediaLinks:'Social Links', leadProviderWhatsapp:'Lead Provider Whatsapp'
+      };
+      Object.keys(keys).forEach(k => {
+        if (r[k]) {
+          if (k === 'mapsLink') {
+            const raw = String(r[k] || '').trim();
+            const safeText = escapeHtml(raw);
+            const safeHref = raw.replace(/"/g,'');
+            html += `<div style="background:linear-gradient(180deg,#fff,#fbfbff);padding:10px;border-radius:8px">
+                       <div class="small" style="margin-bottom:6px">${keys[k]}</div>
+                       <div style="font-weight:700;display:flex;gap:10px;align-items:center">
+                         <a href="${safeHref}" target="_blank" rel="noopener noreferrer" style="color:#2563eb;text-decoration:underline;word-break:break-all">${safeText}</a>
+                         <button class="nav-btn" style="padding:6px 10px;font-size:13px" onclick="openMapInNewTab('${encodeURIComponent(raw)}')"><i class="fa-solid fa-map-location-dot"></i> Open Live</button>
+                       </div>
+                     </div>`;
+          } else {
+            html += `<div style="background:linear-gradient(180deg,#fff,#fbfbff);padding:10px;border-radius:8px">
+                      <div class="small" style="margin-bottom:6px">${keys[k]}</div>
+                      <div style="font-weight:700">${escapeHtml(r[k])}</div>
+                     </div>`;
+          }
+        }
+      });
+      html += `</div>`;
+
+      if (r.additionalDetails) html += `<div style="margin-top:12px"><div class="small">Additional Details</div><div style="background:#f8fafc;padding:10px;border-radius:8px;margin-top:6px">${escapeHtml(r.additionalDetails)}</div></div>`;
+      if (r.feedback) html += `<div style="margin-top:12px"><div class="small">Feedback</div><div style="background:#fff8f0;padding:10px;border-radius:8px;margin-top:6px">${escapeHtml(r.feedback)}</div></div>`;
+
+      const images = (r.shopPics||[]).concat(r.catalogPics||[]);
+      if (images.length) {
+        html += `<div style="margin-top:12px"><div class="small">Attachments</div><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px">`;
+        images.forEach(fn => {
+          if (typeof fn === 'object' && fn.dataUrl) {
+            html += `<div style="padding:8px;background:#fff;border-radius:8px;border:1px solid #eef"><img src="${fn.dataUrl}" style="width:120px;height:90px;object-fit:cover;border-radius:6px" /><div style="font-weight:700;margin-top:6px">${escapeHtml(fn.filename||'captured')}</div></div>`;
+          } else {
+            html += `<div style="padding:8px;background:#fff;border-radius:8px;border:1px solid #eef"><div style="font-weight:700">${escapeHtml(fn)}</div></div>`;
+          }
+        });
+        html += `</div></div>`;
+      }
+
+      if (r.mapsLink) {
+        const embed = deriveEmbedUrl(String(r.mapsLink));
+        if (embed) {
+          const iframeSrc = embed;
+          html += `<div style="margin-top:12px">
+                    <div class="small" style="margin-bottom:8px">Map (interactive)</div>
+                    <div style="border-radius:12px;overflow:hidden;border:1px solid #e6eef9">
+                      <iframe src="${iframeSrc}" width="100%" height="300" style="border:0;display:block" allowfullscreen="" loading="lazy"></iframe>
+                    </div>
+                  </div>`;
+        }
+      }
+
+      container.innerHTML = html;
+      document.getElementById('recordModal').style.display='flex';
+    }
+
+    function closeRecordModal(){ document.getElementById('recordModal').style.display='none'; document.getElementById('recordDetails').innerHTML=''; }
+
+    /* Export CSV (unchanged) */
+    function exportToCSV(records = null, filenamePrefix = null) {
+      if (!currentUser) { alert('Login first'); return; }
+      let recs = records;
+      if (!recs) recs = getUserRecords(currentUser.username);
+      if (!recs.length) { alert('No records to export'); return; }
+      const headers = ['Record ID','Date of Visit','Person Name','Mobile Number','Person Type','Shop Name','Lead Source','Other Source','Address','City','State','Pincode','Landmark','Maps Link','Shop Size','Shop Stock','Brand Logo','Shop Pictures','Catalog Pictures','Social Links','Lead Provider Whatsapp','Additional Details','Feedback','Submitted By','Submitted At'];
+      let csv = headers.join(',') + '\n';
+      recs.forEach(r=>{
+        const row = [
+          r.id || '',
+          r.visitDate || '',
+          `"${(r.personName||'').replace(/"/g,'""')}"`,
+          r.mobileNumber || '',
+          r.personType || '',
+          `"${(r.shopName||'').replace(/"/g,'""')}"`,
+          r.leadSource||'',
+          `"${(r.otherSource||'').replace(/"/g,'""')}"`,
+          `"${(r.address||'').replace(/"/g,'""')}"`,
+          r.city||'',
+          r.state||'',
+          r.pincode||'',
+          `"${(r.landmark||'').replace(/"/g,'""')}"`,
+          r.mapsLink||'',
+          r.shopSize||'',
+          r.shopStock||'',
+          `"${(r.brandLogo||'').replace(/"/g,'""')}"`,
+          Array.isArray(r.shopPics) ? `"${r.shopPics.map(x => typeof x === 'object' ? x.filename : x).join('; ').replace(/"/g,'""')}"` : '',
+          Array.isArray(r.catalogPics) ? `"${r.catalogPics.map(x => typeof x === 'object' ? x.filename : x).join('; ').replace(/"/g,'""')}"` : '',
+          `"${(r.socialMediaLinks||'').replace(/"/g,'""')}"`,
+          `"${(r.leadProviderWhatsapp||'').replace(/"/g,'""')}"`,
+          `"${(r.additionalDetails||'').replace(/"/g,'""')}"`,
+          `"${(r.feedback||'').replace(/"/g,'""')}"`,
+          r.submitterName || r.submittedBy || '',
+          r.submittedAt || ''
+        ];
+        csv += row.join(',') + '\n';
+      });
+      const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+      const link = document.createElement('a');
+      const fname = (filenamePrefix || currentUser.username + '_Visit_Records') + '_' + (new Date().toISOString().slice(0,10)) + '.csv';
+      link.href = URL.createObjectURL(blob);
+      link.download = fname; document.body.appendChild(link); link.click(); link.remove();
+    }
+    function exportData(){ const recs = getUserRecords(currentUser.username); exportToCSV(recs); }
+    function exportAllData(){ if (!currentUser || !currentUser.permissions.includes('admin')) { alert('Admin only'); return; } const all = getAllRecords(); if (!all.length) { alert('No data'); return; } exportToCSV(all, 'ALL_VISIT_RECORDS'); }
+    function getAllRecords(){ const out=[]; users = loadUsers(); Object.keys(users).forEach(u => { const r = JSON.parse(localStorage.getItem(`visitRecords_${u}`) || '[]'); r.forEach(i=>out.push(i)); }); return out.sort((a,b)=> (b.timestamp||'').localeCompare(a.timestamp||'')); }
+
+    /* Admin panels + sessions (unchanged) */
+    function viewAllUsers(){
+      if (!currentUser || !currentUser.permissions.includes('admin')){ alert('Admin only'); return; }
+      const el = document.getElementById('adminContent'); users = loadUsers();
+      let html = '<h3>All System Users</h3><div style="display:grid;gap:10px;margin-top:12px">';
+      Object.entries(users).forEach(([u,obj])=>{
+        html += `<div class="record-item" style="display:flex;justify-content:space-between;align-items:center"><div><strong>${escapeHtml(obj.fullName)}</strong><div class="small">${escapeHtml(u)} • ${escapeHtml(obj.role)}</div></div><div style="text-align:right"><div class="small">Dept: ${escapeHtml(obj.department||'-')}</div><div class="small">ID: ${escapeHtml(obj.employeeId||'-')}</div></div></div>`;
+      });
+      html += '</div>'; el.innerHTML = html;
+    }
+
+    function viewAllRecords(){
+      if (!currentUser || !currentUser.permissions.includes('admin')){ alert('Admin only'); return; }
+      const el = document.getElementById('adminContent'); const all = getAllRecords();
+      if (!all.length) { el.innerHTML = '<div style="padding:30px;text-align:center;color:var(--muted)">No records</div>'; return; }
+      let html = `<h3>All Visit Records (${all.length})</h3><div style="display:grid;gap:8px;margin-top:12px">`;
+      all.forEach(r=>{ html += `<div class="record-item"><div style="display:flex;justify-content:space-between"><div><strong>${escapeHtml(r.shopName||'-')}</strong><div class="small">${escapeHtml(r.personName||'')} • ${escapeHtml(r.city||'')}</div></div><div style="text-align:right"><div class="small">ID: #${r.id}</div><div class="small">${escapeHtml(r.submittedBy)}</div></div></div></div>`; });
+      html += '</div>'; el.innerHTML = html;
+    }
+
+    function displayAdminPanel(){ document.getElementById('adminContent').innerHTML = `<div style="padding:18px"><h3>Administrator Panel</h3><p class="small">Use the controls above to manage users and data</p></div>`; }
+
+    function viewSessions(){
+      if (!currentUser || !currentUser.permissions.includes('admin')){ alert('Admin only'); return; }
+      const el = document.getElementById('adminContent');
+      const sessions = loadSessions();
+      const keys = Object.keys(sessions || {});
+      if (!keys.length) { el.innerHTML = '<div style="padding:30px;text-align:center;color:var(--muted)">No login sessions found</div>'; return; }
+
+      let html = `<h3>Login Sessions</h3><div style="display:grid;gap:10px;margin-top:12px">`;
+      keys.sort((a,b)=> (sessions[b].lastLogin||'').localeCompare(sessions[a].lastLogin||'')).forEach(u => {
+        const s = sessions[u];
+        html += `<div class="record-item"><div style="display:flex;justify-content:space-between;align-items:center"><div><strong>${escapeHtml(s.fullName || u)}</strong><div class="small">${escapeHtml(u)} • ${escapeHtml(s.role||'-')}</div></div><div style="text-align:right"><div class="small">Last login: ${escapeHtml(s.lastLogin ? new Date(s.lastLogin).toLocaleString() : '-')}</div><div class="small">Last logout: ${escapeHtml(s.lastLogout ? new Date(s.lastLogout).toLocaleString() : '-')}</div><div style="margin-top:8px">${s.active ? '<span style="color:green;font-weight:700">Active</span>' : '<span style="color:#666">Inactive</span>'}</div></div></div></div>`;
+      });
+      html += `</div>`;
+      el.innerHTML = html;
+    }
+
+    function exportSessions(){
+      if (!currentUser || !currentUser.permissions.includes('admin')){ alert('Admin only'); return; }
+      const sessions = loadSessions();
+      const keys = Object.keys(sessions || {});
+      if (!keys.length) { alert('No sessions'); return; }
+      const headers = ['Username','Full Name','Role','Last Login','Last Logout','Active'];
+      let csv = headers.join(',') + '\n';
+      keys.forEach(u=>{
+        const s = sessions[u];
+        const row = [
+          u,
+          `"${(s.fullName||'').replace(/"/g,'""')}"`,
+          `"${(s.role||'').replace(/"/g,'""')}"`,
+          s.lastLogin || '',
+          s.lastLogout || '',
+          s.active ? 'true' : 'false'
+        ];
+        csv += row.join(',') + '\n';
+      });
+      const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+      const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = `login_sessions_${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(link); link.click(); link.remove();
+    }
+
+    /* Dashboard & autosave (updated to use collectFormData) */
+    function updateDashboard(){ if (!currentUser) return; const recs = getUserRecords(currentUser.username); const today = new Date().toISOString().slice(0,10); document.getElementById('todayVisits').textContent = recs.filter(r => r.visitDate === today).length; document.getElementById('totalVisits').textContent = recs.length; document.getElementById('uniqueShops').textContent = new Set(recs.map(r=>r.shopName)).size; }
+
+    function clearFormHandler(){ if (!confirm('Clear form?')) return; document.getElementById('asmForm').reset(); document.getElementById('shopPicsPreview').innerHTML=''; document.getElementById('catalogPicsPreview').innerHTML=''; autoSetDateToday(); clearAutoSave(); }
+
+    function clearAutoSave(){ if (!currentUser) return; localStorage.removeItem(`autoSave_${currentUser.username}`); }
+
+    function setupAutoSave(){
+      // collect all named inputs inside formSection
+      const container = document.getElementById('formSection');
+      if (!container || !currentUser) return;
+      const inputs = container.querySelectorAll('input[name], textarea[name], select[name]');
+      inputs.forEach(inp => {
+        inp.addEventListener('change', ()=> {
+          const obj = collectFormData();
+          localStorage.setItem(`autoSave_${currentUser.username}`, JSON.stringify(obj));
+        });
+      });
+    }
+    function loadAutoSave(){
+      if (!currentUser) return;
+      const s = localStorage.getItem(`autoSave_${currentUser.username}`);
+      if (!s) return;
+      try {
+        const data = JSON.parse(s);
+        const container = document.getElementById('formSection');
+        Object.entries(data).forEach(([k,v])=>{
+          const els = container.querySelectorAll(`[name="${k}"]`);
+          if (!els || els.length===0) return;
+          const first = els[0];
+          if (first.type === 'radio') {
+            const rb = container.querySelector(`[name="${k}"][value="${v}"]`);
+            if (rb) rb.checked = true;
+          } else if (first.type === 'checkbox') {
+            if (Array.isArray(v)) {
+              els.forEach(ch => { ch.checked = v.includes(ch.value); });
+            } else {
+              els[0].checked = !!v;
+            }
+          } else if (first.tagName.toLowerCase() === 'select' && Array.isArray(v)) {
+            Array.from(first.options).forEach(opt => opt.selected = v.includes(opt.value));
+          } else {
+            first.value = v;
+          }
+        });
+      } catch(e){ console.warn('autosave load', e) }
+    }
+
+    /* System backup */
+    function createSystemBackup(){ if (!currentUser || !currentUser.permissions.includes('admin')) { alert('Admin only'); return; } const backup = { users: users, timestamp: new Date().toISOString() }; Object.keys(users).forEach(u => { backup[`records_${u}`] = getUserRecords(u); }); const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `asm_backup_${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); a.remove(); alert('Backup created'); }
+
+    /* Helpers */
+    document.addEventListener('keydown', e => { if (e.key==='Escape'){ document.querySelectorAll('.modal-overlay').forEach(m=>m.style.display='none'); document.body.style.overflow=''; const loginPage = document.getElementById('loginPage'); if (loginPage){ loginPage.style.filter=''; loginPage.style.pointerEvents=''; } } });
+
+    // expose convenience fns
+    window.showCreateUserModal = showCreateUserModal;
+    window.closeCreateUserModal = closeCreateUserModal;
+    window.openRecordDetails = openRecordDetails;
+    window.closeRecordModal = closeRecordModal;
+    window.exportData = exportData;
+    window.exportAllData = exportAllData;
+    window.viewAllUsers = viewAllUsers;
+    window.viewAllRecords = viewAllRecords;
+    window.createSystemBackup = createSystemBackup;
+    window.showMainForUser = showMainForUser;
+    window.viewSessions = viewSessions;
+    window.exportSessions = exportSessions;
+  </script>
+
+  <!-- Camera capture patch: adds Camera button and modal for capturing photos -->
+  <script>
+  (function(){
+    // store captured images per input id (used by UI and record save)
+    if(!window.__capturedImagesStore) window.__capturedImagesStore = { shopPics: [], catalogPics: [] };
+
+    const cameraModalHtml = `
+      <div id="cameraCaptureModal" class="modal-overlay" style="display:none;align-items:center;justify-content:center;z-index:3000">
+        <div class="modal" style="max-width:420px; padding:12px; position:relative;">
+          <button id="closeCameraModal" style="position:absolute;right:10px;top:8px;background:none;border:0;font-size:20px;cursor:pointer">&times;</button>
+          <div style="text-align:center;margin-bottom:8px"><strong>Take Photo</strong></div>
+          <div style="width:100%;height:320px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px">
+            <video id="cameraVideo" autoplay playsinline style="width:100%;height:220px;border-radius:8px;background:#000;object-fit:cover"></video>
+            <canvas id="cameraCanvas" style="display:none;"></canvas>
+            <div style="display:flex;gap:8px;justify-content:center;width:100%">
+              <button id="snapPhotoBtn" class="nav-btn" style="padding:8px 12px"><i class="fa-solid fa-camera"></i>&nbsp;Capture</button>
+              <button id="savePhotoBtn" class="nav-btn" style="padding:8px 12px;display:none"><i class="fa-solid fa-floppy-disk"></i>&nbsp;Save</button>
+              <button id="retakePhotoBtn" class="nav-btn" style="padding:8px 12px;display:none"><i class="fa-solid fa-rotate-left"></i>&nbsp;Retake</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (!document.getElementById('cameraCaptureModal')) {
+        document.body.insertAdjacentHTML('beforeend', cameraModalHtml);
+        wireCameraModal();
+      }
+      addCameraButtonsToUploadAreas();
+    });
+
+    function addCameraButtonsToUploadAreas(){
+      const areas = [
+        { areaId: 'shopUploadArea', inputId: 'shopPics', previewId: 'shopPicsPreview' },
+        { areaId: 'catalogUploadArea', inputId: 'catalogPics', previewId: 'catalogPicsPreview' }
+      ];
+      areas.forEach(({areaId,inputId,previewId}) => {
+        const area = document.getElementById(areaId);
+        if (!area) return;
+        // Prevent duplicate button
+        if (area.querySelector('.camera-inline-btn')) return;
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'camera-inline-btn nav-btn';
+        btn.style.marginLeft = '10px';
+        btn.style.fontSize = '13px';
+        btn.innerHTML = '<i class="fa-solid fa-camera"></i>&nbsp;Camera';
+        btn.title = 'Take photo using camera';
+
+        // STOP event bubbling so parent click (open file picker) does not fire
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (typeof openCameraModalForInput === 'function') openCameraModalForInput(inputId, previewId);
+        });
+
+        // Also prevent mousedown from bubbling (some browsers trigger file dialog on mousedown)
+        btn.addEventListener('mousedown', (e) => { e.stopPropagation(); });
+
+        area.appendChild(btn);
+      });
+    }
+
+    /* Camera modal wiring */
+    function wireCameraModal(){
+      const modal = document.getElementById('cameraCaptureModal');
+      const video = document.getElementById('cameraVideo');
+      const canvas = document.getElementById('cameraCanvas');
+      const snapBtn = document.getElementById('snapPhotoBtn');
+      const saveBtn = document.getElementById('savePhotoBtn');
+      const retakeBtn = document.getElementById('retakePhotoBtn');
+      const closeBtn = document.getElementById('closeCameraModal');
+      let stream = null;
+      let currentInputId = null;   // 'shopPics' or 'catalogPics'
+      let currentPreviewId = null;
+
+      async function startCamera(){
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+          video.srcObject = stream;
+          await video.play();
+          snapBtn.style.display = 'inline-flex';
+          saveBtn.style.display = 'none';
+          retakeBtn.style.display = 'none';
+          canvas.style.display = 'none';
+        } catch (err) {
+          console.error('camera error', err);
+          alert('Camera access not available. Your browser or device may not support getUserMedia or you must run via http://localhost or https.');
+          closeModalAndStop();
+        }
+      }
+
+      function stopCameraStream(){
+        if (stream) {
+          stream.getTracks().forEach(t => t.stop());
+          stream = null;
+        }
+        try { video.pause(); video.srcObject = null; } catch(e){}
+      }
+
+      function closeModalAndStop(){
+        stopCameraStream();
+        modal.style.display = 'none';
+        currentInputId = null;
+        currentPreviewId = null;
+      }
+
+      snapBtn.addEventListener('click', () => {
+        const w = video.videoWidth;
+        const h = video.videoHeight;
+        if (!w || !h) { alert('Unable to capture frame. Try again.'); return; }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, w, h);
+        canvas.style.display = 'block';
+        // show save / retake
+        saveBtn.style.display = 'inline-flex';
+        retakeBtn.style.display = 'inline-flex';
+        snapBtn.style.display = 'none';
+        // pause video preview while showing captured image
+        try { video.pause(); } catch(e){}
+      });
+
+      retakeBtn.addEventListener('click', () => {
+        // resume video preview
+        try { video.play(); } catch(e){}
+        canvas.style.display = 'none';
+        saveBtn.style.display = 'none';
+        retakeBtn.style.display = 'none';
+        snapBtn.style.display = 'inline-flex';
+      });
+
+      // >>> UPDATED SAVE HANDLER <<<
+      saveBtn.addEventListener('click', () => {
+        try {
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+          const filename = 'captured_' + Date.now() + '.jpg';
+          if (currentInputId && currentPreviewId) {
+            addCapturedImageToPreview(currentInputId, currentPreviewId, dataUrl, filename);
+          }
+
+          // trigger browser download to Downloads (per browser settings)
+          try {
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+          } catch (dlErr) {
+            console.warn('Auto-download failed:', dlErr);
+          }
+
+          // reset UI and close modal (stop camera)
+          canvas.style.display = 'none';
+          saveBtn.style.display = 'none';
+          retakeBtn.style.display = 'none';
+          snapBtn.style.display = 'inline-flex';
+          closeModalAndStop();
+        } catch (err) {
+          console.error('Error saving captured photo', err);
+          alert('Failed to save photo — try again.');
+        }
+      });
+      // <<< END UPDATED SAVE HANDLER <<<
+
+      closeBtn.addEventListener('click', () => closeModalAndStop());
+      // close when clicking outside modal content
+      modal.addEventListener('click', (ev) => { if (ev.target === modal) closeModalAndStop(); });
+
+      window.openCameraModalForInput = async function(inputId, previewId){
+        currentInputId = inputId;
+        currentPreviewId = previewId;
+        modal.style.display = 'flex';
+        // small timeout to ensure modal visible
+        setTimeout(() => startCamera(), 80);
+      };
+
+      window.addEventListener('beforeunload', stopCameraStream);
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.style.display === 'flex') closeModalAndStop(); });
+    }
+
+    // Adds captured image to the preview area and to capturedImages store
+    function addCapturedImageToPreview(inputId, previewId, dataUrl, filename){
+      if (!window.__capturedImagesStore) window.__capturedImagesStore = { shopPics: [], catalogPics: [] };
+      const store = window.__capturedImagesStore;
+      if (!store[inputId]) store[inputId] = [];
+      store[inputId].push({ dataUrl, filename });
+
+      const preview = document.getElementById(previewId);
+      if (!preview) return;
+      const elWrap = document.createElement('div');
+      elWrap.style.padding = '6px';
+      elWrap.style.background = '#fff';
+      elWrap.style.borderRadius = '8px';
+      elWrap.style.border = '1px solid #eef';
+      elWrap.style.display = 'flex';
+      elWrap.style.flexDirection = 'column';
+      elWrap.style.alignItems = 'center';
+      elWrap.style.gap = '6px';
+      elWrap.style.maxWidth = '120px';
+
+      const img = document.createElement('img');
+      img.src = dataUrl;
+      img.style.width = '100px';
+      img.style.height = '100px';
+      img.style.objectFit = 'cover';
+      img.style.borderRadius = '8px';
+      elWrap.appendChild(img);
+
+      const lbl = document.createElement('div');
+      lbl.style.fontSize = '12px';
+      lbl.style.fontWeight = '700';
+      lbl.style.wordBreak = 'break-word';
+      lbl.textContent = filename;
+      elWrap.appendChild(lbl);
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.className = 'btn-ghost';
+      removeBtn.style.padding = '6px 8px';
+      removeBtn.style.fontSize = '12px';
+      removeBtn.textContent = 'Remove';
+      removeBtn.addEventListener('click', () => {
+        const idx = store[inputId].findIndex(x => x.filename === filename && x.dataUrl === dataUrl);
+        if (idx !== -1) store[inputId].splice(idx,1);
+        elWrap.remove();
+      });
+      elWrap.appendChild(removeBtn);
+
+      preview.appendChild(elWrap);
+    }
+
+    // Expose functions used by main code to attach and clear captured images
+    window.__attachCapturedImagesToRecord = function(record) {
+      const store = window.__capturedImagesStore || { shopPics: [], catalogPics: [] };
+      if (store.shopPics && store.shopPics.length) {
+        record.shopPics = record.shopPics || [];
+        store.shopPics.forEach(ci => record.shopPics.push({ filename: ci.filename, dataUrl: ci.dataUrl }));
+      }
+      if (store.catalogPics && store.catalogPics.length) {
+        record.catalogPics = record.catalogPics || [];
+        store.catalogPics.forEach(ci => record.catalogPics.push({ filename: ci.filename, dataUrl: ci.dataUrl }));
+      }
+    };
+
+    window.__clearCapturedImages = function(){
+      if (window.__capturedImagesStore) {
+        window.__capturedImagesStore.shopPics = [];
+        window.__capturedImagesStore.catalogPics = [];
+      }
+    };
+
+    // Ensure camera buttons added again after dynamic UI changes
+    setTimeout(() => {
+      try { addCameraButtonsToUploadAreas(); } catch(e){}
+    }, 200);
+  })();
+  </script>
+
+  <!-- MAPS BUTTON -->
+  <script>
+    function attachMapsInputOpenButton(){
+      try {
+        const mapsInput = document.querySelector('input[name="mapsLink"]');
+        if (!mapsInput) return;
+        if (mapsInput.dataset.hasGeoBtn) return;
+        mapsInput.dataset.hasGeoBtn = '1';
+
+        const wrapper = document.createElement('div');
+        wrapper.style.display = 'flex';
+        wrapper.style.alignItems = 'center';
+        wrapper.style.gap = '8px';
+        wrapper.style.marginTop = '6px';
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'maps-get-btn small';
+        btn.innerHTML = '<i class="fa-solid fa-location-crosshairs" style="font-size:12px"></i>&nbsp;Use my location';
+        btn.title = 'Click to detect your current location and insert Google Maps link';
+
+        const status = document.createElement('span');
+        status.className = 'maps-get-msg';
+        status.style.opacity = '0.95';
+        status.style.fontSize = '13px';
+        status.textContent = '';
+
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          status.textContent = 'Requesting location…';
+          btn.disabled = true;
+          btn.style.opacity = '0.75';
+
+          if (!('geolocation' in navigator)) {
+            status.textContent = 'Geolocation not supported by this browser.';
+            btn.disabled = false;
+            btn.style.opacity = '';
+            return;
+          }
+
+          const opts = { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 };
+          let handled = false;
+          const onSuccess = (pos) => {
+            if (handled) return;
+            handled = true;
+            const lat = parseFloat(pos.coords.latitude.toFixed(6));
+            const lng = parseFloat(pos.coords.longitude.toFixed(6));
+            const mapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+            mapsInput.value = mapsUrl;
+            mapsInput.dispatchEvent(new Event('input', { bubbles: true }));
+            status.textContent = 'Location detected — link added.';
+            setTimeout(()=> status.textContent = '', 4000);
+            btn.disabled = false;
+            btn.style.opacity = '';
+          };
+          const onError = (err) => {
+            if (handled) return;
+            handled = true;
+            console.warn('geolocation error', err);
+            switch (err.code) {
+              case 1: status.textContent = 'Permission denied. Please allow location access.'; break;
+              case 2: status.textContent = 'Position unavailable.'; break;
+              case 3: status.textContent = 'Request timed out. Try again.'; break;
+              default: status.textContent = 'Failed to get location.'; break;
+            }
+            if (window.isSecureContext === false || location.protocol === 'file:') {
+              status.textContent = 'Enable HTTPS or run via http://localhost to allow location access.';
+            }
+            btn.disabled = false;
+            btn.style.opacity = '';
+            setTimeout(()=> status.textContent = '', 7000);
+          };
+
+          try {
+            navigator.geolocation.getCurrentPosition(onSuccess, onError, opts);
+          } catch (ex) {
+            console.error('geolocation exception', ex);
+            status.textContent = 'Unable to request location.';
+            btn.disabled = false;
+            btn.style.opacity = '';
+            setTimeout(()=> status.textContent = '', 4000);
+          }
+        });
+
+        mapsInput.parentNode.insertBefore(wrapper, mapsInput.nextSibling);
+        wrapper.appendChild(btn);
+        wrapper.appendChild(status);
+      } catch (err) {
+        console.error('attachMapsInputOpenButton error', err);
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      try { attachMapsInputOpenButton(); } catch(e){ console.warn(e); }
+    });
+  </script>
+
+</body>
+</html>
+
